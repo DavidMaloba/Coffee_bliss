@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - Coffee Bliss</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4efe9;
+      color: #333;
+      padding: 20px;
+    }
+
+    header { text-align: center; padding: 20px 0; }
+    h1 { color: #4b2e2e; }
+    header p { color: #6b5b53; margin-top: 4px; }
+
+    .hidden { display: none !important; }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: 20px auto;
+    }
+
+    .card h2 { margin-bottom: 12px; color: #4b2e2e; }
+
+    .card input, .card select, .card textarea, .card button {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .card button {
+      background: #4b2e2e;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+    }
+    .card button:hover { background: #3a1f1f; }
+    .card button.secondary { background: #ffcc70; color: #3a1f1f; }
+    .card button.secondary:hover { background: #f5bd54; }
+
+    .msg { text-align: center; color: #c0392b; margin-top: 8px; min-height: 1.2em; }
+    .status { text-align: center; color: #2e7d32; min-height: 1.2em; margin-bottom: 8px; }
+
+    .userbar {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+    .userbar button {
+      background: none;
+      border: 1px solid #4b2e2e;
+      color: #4b2e2e;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .preview { display: block; max-width: 140px; height: 105px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ddd; }
+
+    .item-list { max-width: 900px; margin: 30px auto; }
+
+    .item {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    .item img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #eee; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-info small { color: #666; }
+    .item-actions { display: flex; gap: 5px; }
+    .item-actions button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .item-actions button.edit { background: #2ecc71; }
+
+    @media (max-width: 600px) {
+      .item { flex-wrap: wrap; }
+      .item-actions { width: 100%; }
+      .item-actions button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin Dashboard - Coffee Bliss</h1>
+    <p>Manage your menu items here.</p>
+  </header>
+
+  <!-- Login screen -->
+  <div id="loginBox" class="card hidden">
+    <h2>Owner login</h2>
+    <button onclick="login()">Sign in with Google</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <!-- Dashboard (only shown to the owner) -->
+  <div id="dashboard" class="hidden">
+    <div class="userbar">
+      <span id="userEmail"></span>
+      <button onclick="logout()">Sign out</button>
+    </div>
+
+    <div class="card">
+      <h2 id="formTitle">Add menu item</h2>
+      <input type="text" id="title" placeholder="Item title" />
+      <select id="category">
+        <option value="breakfast">Breakfast</option>
+        <option value="beverages">Beverages</option>
+      </select>
+      <input type="number" id="price" placeholder="Price (KSh)" min="0" />
+      <input type="text" id="img" placeholder="Image path (e.g., image/pancakes.jpg)" oninput="updatePreview()" />
+      <img id="preview" class="preview hidden" alt="Image preview" />
+      <textarea id="desc" placeholder="Description"></textarea>
+      <button id="saveBtn" onclick="saveItem()">Save item</button>
+      <button id="cancelBtn" class="secondary hidden" onclick="clearForm()">Cancel edit</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="card hidden" id="importBox">
+      <h2>Your menu is empty</h2>
+      <p style="margin-bottom:10px">Load the 9 starter items (pancakes, latte, etc.) into the database so you can edit them.</p>
+      <button class="secondary" onclick="importStarter()">Import starter menu</button>
+    </div>
+
+    <div class="item-list" id="itemList"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBACx3oRCEm49TwGR7jCJBtfACTSWmMykc",
+      authDomain: "coffee-bliss-30203.firebaseapp.com",
+      projectId: "coffee-bliss-30203",
+      storageBucket: "coffee-bliss-30203.firebasestorage.app",
+      messagingSenderId: "1080816917801",
+      appId: "1:1080816917801:web:70bc310117c4f58ac5eb38"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const OWNER_EMAIL = "dmaloba903@gmail.com";
+
+    const starterItems = [
+      { title: "Pancakes", category: "breakfast", price: 599, img: "image/pancakes.jpg", desc: "Fluffy pancakes with maple syrup" },
+      { title: "Croissant", category: "breakfast", price: 299, img: "image/croissant.jpg", desc: "Buttery flaky croissant" },
+      { title: "Waffles", category: "breakfast", price: 650, img: "image/waffles.jpg", desc: "Crispy waffles with berries" },
+      { title: "Bagel & Cream Cheese", category: "breakfast", price: 375, img: "image/bagel.jpg", desc: "Toasted bagel with cream cheese" },
+      { title: "Fruit Bowl", category: "breakfast", price: 399, img: "image/fruit-bowl.jpg", desc: "Fresh seasonal fruits" },
+      { title: "Caramel Latte", category: "beverages", price: 450, img: "image/caramel-latte.jpg", desc: "Rich espresso with caramel syrup" },
+      { title: "Iced Coffee", category: "beverages", price: 399, img: "image/iced-coffee.jpg", desc: "Chilled brewed coffee served with ice" },
+      { title: "Mocha", category: "beverages", price: 475, img: "image/mocha.jpg", desc: "Chocolate-infused espresso" },
+      { title: "Espresso", category: "beverages", price: 250, img: "image/espresso.jpg", desc: "Strong and bold espresso shot" }
+    ];
+
+    let editId = null;
+    let items = [];
+    let unsubscribe = null;
+
+    const $ = id => document.getElementById(id);
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function setStatus(text, isError) {
+      const el = $("status");
+      el.textContent = text;
+      el.style.color = isError ? "#c0392b" : "#2e7d32";
+      if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 3000);
+    }
+
+    /* ---------- Login ---------- */
+    function login() {
+      $("loginMsg").textContent = "";
+      auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => {
+        $("loginMsg").textContent = "Login failed: " + err.message;
+      });
+    }
+
+    function logout() { auth.signOut(); }
+
+    auth.onAuthStateChanged(user => {
+      if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+
+      if (!user) {
+        $("dashboard").classList.add("hidden");
+        $("loginBox").classList.remove("hidden");
+        return;
+      }
+
+      if (user.email !== OWNER_EMAIL) {
+        $("loginMsg").textContent = user.email + " is not allowed to edit this menu.";
+        auth.signOut();
+        return;
+      }
+
+      $("loginBox").classList.add("hidden");
+      $("dashboard").classList.remove("hidden");
+      $("userEmail").textContent = "Signed in as " + user.email;
+
+      unsubscribe = db.collection("menu").orderBy("title").onSnapshot(snap => {
+        items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderItems();
+      }, err => {
+        setStatus("Could not load menu: " + err.message, true);
+      });
+    });
+
+    /* ---------- Menu list ---------- */
+    function renderItems() {
+      const list = $("itemList");
+      list.innerHTML = "";
+      $("importBox").classList.toggle("hidden", items.length > 0);
+
+      items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <img src="${esc(item.img)}" alt="">
+          <div class="item-info">
+            <strong>${esc(item.title)}</strong> | ${esc(item.category)} | KSh ${Number(item.price).toLocaleString()}<br>
+            <small>${esc(item.desc)}</small>
+          </div>
+          <div class="item-actions">
+            <button class="edit" onclick="editItem('${esc(item.id)}')">Edit</button>
+            <button onclick="deleteItem('${esc(item.id)}')">Delete</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    /* ---------- Add / edit / delete ---------- */
+    async function saveItem() {
+      const title = $("title").value.trim();
+      const category = $("category").value;
+      const price = parseFloat($("price").value);
+      const img = $("img").value.trim();
+      const desc = $("desc").value.trim();
+
+      if (!title || isNaN(price) || !img || !desc) {
+        setStatus("Please fill in all fields.", true);
+        return;
+      }
+
+      const data = { title, category, price, img, desc };
+      $("saveBtn").disabled = true;
+      try {
+        if (editId) {
+          await db.collection("menu").doc(editId).set(data);
+          setStatus("Item updated.");
+        } else {
+          await db.collection("menu").add(data);
+          setStatus("Item added.");
+        }
+        clearForm();
+      } catch (err) {
+        setStatus("Could not save: " + err.message, true);
+      }
+      $("saveBtn").disabled = false;
+    }
+
+    function editItem(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      $("title").value = item.title;
+      $("category").value = item.category;
+      $("price").value = item.price;
+      $("img").value = item.img;
+      $("desc").value = item.desc;
+      editId = id;
+      $("formTitle").textContent = "Edit menu item";
+      $("saveBtn").textContent = "Update item";
+      $("cancelBtn").classList.remove("hidden");
+      updatePreview();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function deleteItem(id) {
+      if (!confirm("Are you sure you want to delete this item?")) return;
+      try {
+        await db.collection("menu").doc(id).delete();
+        if (editId === id) clearForm();
+        setStatus("Item deleted.");
+      } catch (err) {
+        setStatus("Could not delete: " + err.message, true);
+      }
+    }
+
+    function clearForm() {
+      ["title", "price", "img", "desc"].forEach(id => $(id).value = "");
+      $("category").value = "breakfast";
+      editId = null;
+      $("formTitle").textContent = "Add menu item";
+      $("saveBtn").textContent = "Save item";
+      $("cancelBtn").classList.add("hidden");
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const path = $("img").value.trim();
+      const p = $("preview");
+      if (path) { p.src = path; p.classList.remove("hidden"); }
+      else { p.classList.add("hidden"); }
+    }
+
+    async function importStarter() {
+      try {
+        const batch = db.batch();
+        starterItems.forEach(item => batch.set(db.collection("menu").doc(), item));
+        await batch.commit();
+        setStatus("Starter menu imported.");
+      } catch (err) {
+        setStatus("Could not import: " + err.message, true);
+      }
+    }
+  </script>
+</body>
+</html>
