@@ -109,7 +109,7 @@
 <body>
 
   <!-- Login -->
-  <div id="loginView" class="login-wrap hidden">
+  <div id="loginView" class="login-wrap">
     <div class="login-card">
       <div class="logo">&#9749;</div>
       <h1>Coffee Bliss Admin</h1>
@@ -396,6 +396,14 @@
         toast("Could not delete: " + err.message, true);
       }
     }
+
+    // Never leave a blank page: explain problems on the login screen
+    if (location.protocol === "file:") {
+      $("loginMsg").textContent = "Open this page from your website link, not from the file on your device.";
+    }
+    window.addEventListener("error", e => {
+      if (!$("loginMsg").textContent) $("loginMsg").textContent = "Something went wrong: " + e.message;
+    });
 
     async function importStarter() {
       try {
