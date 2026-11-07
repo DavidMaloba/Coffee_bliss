@@ -41,6 +41,22 @@
     <button onclick="checkout()">Checkout</button>
   </div>
 
+  <div id="orderModal" class="order-overlay hidden" onclick="if (event.target === this) closeOrder()">
+    <div class="order-modal">
+      <h2>Send your order</h2>
+      <p class="order-sub">We will open WhatsApp with your order ready to send.</p>
+      <label for="orderName">Your name</label>
+      <input type="text" id="orderName" placeholder="e.g. David" />
+      <label for="orderNote">Note (pickup, delivery location, etc.)</label>
+      <textarea id="orderNote" placeholder="Optional"></textarea>
+      <div class="order-err" id="orderErr"></div>
+      <div class="order-actions">
+        <button class="order-cancel" onclick="closeOrder()">Cancel</button>
+        <button class="order-send" onclick="submitOrder()">Send on WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <p>Contact us: +254-768-649-781 | 123 Brew Lane</p>
   </footer>
@@ -160,11 +176,39 @@
       updateCart();
     }
 
+    // Orders go to this WhatsApp number (country code first, no + or spaces)
+    const WHATSAPP_NUMBER = "254768649781";
+
     function checkout() {
       if (cart.length === 0) return alert("Your cart is empty.");
-      alert("Thank you for your order! Total: KSh " + cart.reduce((sum, item) => sum + item.price * item.qty, 0).toLocaleString());
+      document.getElementById("orderErr").textContent = "";
+      document.getElementById("orderModal").classList.remove("hidden");
+    }
+
+    function closeOrder() {
+      document.getElementById("orderModal").classList.add("hidden");
+    }
+
+    function submitOrder() {
+      const name = document.getElementById("orderName").value.trim();
+      const note = document.getElementById("orderNote").value.trim();
+      if (!name) {
+        document.getElementById("orderErr").textContent = "Please enter your name.";
+        return;
+      }
+
+      const lines = cart.map(i => "• " + i.qty + " x " + i.title + " - KSh " + (i.price * i.qty).toLocaleString());
+      const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+      const text = "Hello Coffee Bliss! I would like to order:\n\n" + lines.join("\n") +
+        "\n\nTotal: KSh " + total.toLocaleString() +
+        "\n\nName: " + name + (note ? "\nNote: " + note : "");
+
+      window.open("https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(text), "_blank");
+
       cart = [];
       updateCart();
+      closeOrder();
+      document.getElementById("orderNote").value = "";
     }
 
     function filterMenu(category, btn) {

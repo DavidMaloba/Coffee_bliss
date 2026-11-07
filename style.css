@@ -178,3 +178,108 @@ footer {
     display: block;
   }
 }
+
+/* Utility */
+.hidden {
+  display: none !important;
+}
+
+/* WhatsApp order pop-up */
+.order-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.order-modal {
+  background: white;
+  color: var(--light-text);
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+body.dark .order-modal {
+  background: #444;
+  color: var(--dark-text);
+}
+
+.order-modal h2 {
+  margin-bottom: 4px;
+}
+
+.order-sub {
+  font-size: 0.9rem;
+  opacity: 0.75;
+  margin-bottom: 14px;
+}
+
+.order-modal label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin: 10px 0 4px;
+}
+
+.order-modal input,
+.order-modal textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.order-modal textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.order-err {
+  color: #c0392b;
+  font-size: 0.85rem;
+  min-height: 1.2em;
+  margin-top: 6px;
+}
+
+.order-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.order-actions button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.order-cancel {
+  background: #ddd;
+  color: #333;
+}
+
+.order-send {
+  background: #25d366;
+  color: white;
+}
+
+.cart > button {
+  padding: 8px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
