@@ -92,6 +92,8 @@
     .preview { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); margin-bottom: 12px; background: #f3ece4; }
     .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
     .modal-actions .btn { flex: 1; }
+    .hint { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+    .field input[type=file] { padding: 8px; }
     .form-err { color: var(--red); font-size: .85rem; min-height: 1.1em; margin-bottom: 8px; }
 
     /* ---------- Toast ---------- */
@@ -173,8 +175,13 @@
         </div>
       </div>
       <div class="field">
-        <label for="img">Image path</label>
-        <input type="text" id="img" placeholder="image/pancakes.jpg" oninput="updatePreview()" />
+        <label for="file">Photo</label>
+        <input type="file" id="file" accept="image/*" onchange="pickPhoto(this)" />
+        <div class="hint">Pick a photo from your phone. It is resized automatically.</div>
+      </div>
+      <div class="field">
+        <label for="img">Or image path</label>
+        <input type="text" id="img" placeholder="image/pancakes.jpg" oninput="photoData = null; updatePreview()" />
       </div>
       <div class="field">
         <label for="desc">Description</label>
@@ -222,6 +229,7 @@
     let editId = null;
     let unsubscribe = null;
     let loaded = false;
+    let photoData = null; // resized photo picked from the phone (data URL)
 
     const $ = id => document.getElementById(id);
 
@@ -337,7 +345,14 @@
       $("title").value = item ? item.title : "";
       $("category").value = item ? item.category : "breakfast";
       $("price").value = item ? item.price : "";
-      $("img").value = item ? item.img : "";
+      photoData = null;
+      $("file").value = "";
+      if (item && item.img && item.img.startsWith("data:")) {
+        photoData = item.img;
+        $("img").value = "";
+      } else {
+        $("img").value = item ? item.img : "";
+      }
       $("desc").value = item ? item.desc : "";
       $("formErr").textContent = "";
       updatePreview();
@@ -350,10 +365,39 @@
     }
 
     function updatePreview() {
-      const path = $("img").value.trim();
+      const path = photoData || $("img").value.trim();
       const p = $("preview");
       if (path) { p.src = path; p.classList.remove("hidden"); }
       else { p.classList.add("hidden"); }
+    }
+
+    function pickPhoto(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const MAX = 800;
+          const scale = Math.min(1, MAX / Math.max(image.width, image.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+          let quality = 0.8;
+          let data = canvas.toDataURL("image/jpeg", quality);
+          while (data.length > 700000 && quality > 0.4) {
+            quality -= 0.1;
+            data = canvas.toDataURL("image/jpeg", quality);
+          }
+          photoData = data;
+          $("img").value = "";
+          updatePreview();
+        };
+        image.onerror = () => { $("formErr").textContent = "Could not read that photo. Try another one."; };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
     }
 
     /* ---------- Save / delete ---------- */
@@ -361,11 +405,11 @@
       const title = $("title").value.trim();
       const category = $("category").value;
       const price = parseFloat($("price").value);
-      const img = $("img").value.trim();
+      const img = photoData || $("img").value.trim();
       const desc = $("desc").value.trim();
 
       if (!title || isNaN(price) || !img || !desc) {
-        $("formErr").textContent = "Please fill in all fields.";
+        $("formErr").textContent = "Please fill in all fields and add a photo.";
         return;
       }
 
