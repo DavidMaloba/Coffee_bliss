@@ -76,6 +76,10 @@
     .actions .edit:hover { background: #eaf6ec; border-color: var(--green); color: var(--green); }
     .actions .del:hover { background: #fdeceb; border-color: var(--red); color: var(--red); }
 
+    .badge.sold { background: #fdeceb; color: var(--red); }
+    .row.out img { filter: grayscale(1); opacity: .55; }
+    .actions .stock:hover { background: #fff6e5; border-color: var(--accent); color: var(--accent-dark); }
+
     .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 30px 16px; text-align: center; color: var(--muted); }
     .empty h3 { color: var(--espresso); margin-bottom: 6px; }
     .empty .btn { margin-top: 14px; }
@@ -319,17 +323,19 @@
       }
 
       box.innerHTML = list.map(item => `
-        <div class="row">
+        <div class="row${item.soldOut ? " out" : ""}">
           <img src="${esc(item.img)}" alt="">
           <div class="info">
             <div class="name">${esc(item.title)}</div>
             <div class="desc">${esc(item.desc)}</div>
             <div class="meta">
               <span class="badge">${esc(item.category)}</span>
+              ${item.soldOut ? '<span class="badge sold">Sold out</span>' : ""}
               <span class="price">KSh ${Number(item.price).toLocaleString()}</span>
             </div>
           </div>
           <div class="actions">
+            <button class="stock" onclick="toggleSoldOut('${esc(item.id)}')">${item.soldOut ? "Back in stock" : "Sold out"}</button>
             <button class="edit" onclick="openModal('${esc(item.id)}')">Edit</button>
             <button class="del" onclick="deleteItem('${esc(item.id)}')">Delete</button>
           </div>
@@ -417,7 +423,7 @@
       $("saveBtn").disabled = true;
       try {
         if (editId) {
-          await db.collection("menu").doc(editId).set(data);
+          await db.collection("menu").doc(editId).set(data, { merge: true });
           toast("Item updated");
         } else {
           await db.collection("menu").add(data);
@@ -428,6 +434,17 @@
         $("formErr").textContent = "Could not save: " + err.message;
       }
       $("saveBtn").disabled = false;
+    }
+
+    async function toggleSoldOut(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      try {
+        await db.collection("menu").doc(id).update({ soldOut: !item.soldOut });
+        toast(item.soldOut ? "Back in stock" : "Marked as sold out");
+      } catch (err) {
+        toast("Could not update: " + err.message, true);
+      }
     }
 
     async function deleteItem(id) {

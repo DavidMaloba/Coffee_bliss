@@ -283,3 +283,20 @@ body.dark .order-modal {
   cursor: pointer;
   font-weight: bold;
 }
+
+/* Sold-out items */
+.menu-item.sold-out img {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.menu-item.sold-out h3,
+.menu-item.sold-out p {
+  opacity: 0.6;
+}
+
+.menu-item button.sold-btn {
+  background: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
