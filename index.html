@@ -46,9 +46,9 @@
       <h2>Send your order</h2>
       <p class="order-sub">We will open WhatsApp with your order ready to send.</p>
       <label for="orderName">Your name</label>
-      <input type="text" id="orderName" placeholder="e.g. David" />
+      <input type="text" id="orderName" placeholder="e.g. David" maxlength="80" />
       <label for="orderNote">Note (pickup, delivery location, etc.)</label>
-      <textarea id="orderNote" placeholder="Optional"></textarea>
+      <textarea id="orderNote" placeholder="Optional" maxlength="300"></textarea>
       <div class="order-err" id="orderErr"></div>
       <div class="order-actions">
         <button class="order-cancel" onclick="closeOrder()">Cancel</button>
@@ -205,7 +205,17 @@
         "\n\nTotal: KSh " + total.toLocaleString() +
         "\n\nName: " + name + (note ? "\nNote: " + note : "");
 
+      // Open WhatsApp first (so the browser does not block it), then save a copy of the order
       window.open("https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(text), "_blank");
+
+      db.collection("orders").add({
+        name: name,
+        note: note,
+        items: cart.map(i => ({ title: i.title, qty: i.qty, price: i.price })),
+        total: total,
+        status: "new",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(err => console.error("Could not save order:", err));
 
       cart = [];
       updateCart();

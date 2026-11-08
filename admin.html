@@ -80,6 +80,28 @@
     .row.out img { filter: grayscale(1); opacity: .55; }
     .actions .stock:hover { background: #fff6e5; border-color: var(--accent); color: var(--accent-dark); }
 
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab { flex: 1; padding: 10px; border: 1px solid var(--line); background: #fff; border-radius: 10px; font-weight: 700; font-size: .95rem; color: var(--muted); }
+    .tab.active { background: var(--espresso); color: #fff; border-color: var(--espresso); }
+    .count { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 4px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .75rem; }
+
+    .order { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+    .order.done { opacity: .65; }
+    .order-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .order-name { font-weight: 700; color: var(--espresso); }
+    .order-time { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .order ul { list-style: none; margin: 10px 0; font-size: .9rem; }
+    .order li { padding: 3px 0; border-bottom: 1px dashed var(--line); display: flex; justify-content: space-between; gap: 10px; }
+    .order .note { font-size: .85rem; background: #faf3e8; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+    .order-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .order-total { font-weight: 700; }
+    .order-actions { display: flex; gap: 6px; }
+    .order-actions button { border: 1px solid var(--line); background: #fff; padding: 6px 12px; border-radius: 8px; font-size: .8rem; font-weight: 600; }
+    .order-actions .done-btn:hover { background: #eaf6ec; border-color: var(--green); color: var(--green); }
+    .order-actions .del:hover { background: #fdeceb; border-color: var(--red); color: var(--red); }
+    .badge.new { background: #e8f1ff; color: #1d5fb8; }
+    .badge.finished { background: #eaf6ec; color: var(--green); }
+
     .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 30px 16px; text-align: center; color: var(--muted); }
     .empty h3 { color: var(--espresso); margin-bottom: 6px; }
     .empty .btn { margin-top: 14px; }
@@ -136,6 +158,12 @@
     </div>
 
     <main>
+      <div class="tabs">
+        <button class="tab active" id="tabMenu" onclick="showTab('menu')">Menu</button>
+        <button class="tab" id="tabOrders" onclick="showTab('orders')">Orders <span class="count hidden" id="newCount">0</span></button>
+      </div>
+
+      <div id="menuPane">
       <div class="stats">
         <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">Total items</div></div>
         <div class="stat"><div class="num" id="statBreakfast">0</div><div class="lbl">Breakfast</div></div>
@@ -153,6 +181,11 @@
       </div>
 
       <div class="items" id="items"></div>
+      </div>
+
+      <div id="ordersPane" class="hidden">
+        <div class="items" id="orders"></div>
+      </div>
     </main>
   </div>
 
@@ -232,6 +265,9 @@
     let items = [];
     let editId = null;
     let unsubscribe = null;
+    let unsubOrders = null;
+    let orders = [];
+    let ordersLoaded = false;
     let loaded = false;
     let photoData = null; // resized photo picked from the phone (data URL)
 
@@ -261,7 +297,9 @@
 
     auth.onAuthStateChanged(user => {
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+      if (unsubOrders) { unsubOrders(); unsubOrders = null; }
       loaded = false;
+      ordersLoaded = false;
 
       if (!user) {
         $("appView").classList.add("hidden");
@@ -285,7 +323,84 @@
         loaded = true;
         renderItems();
       }, err => toast("Could not load menu: " + err.message, true));
+
+      unsubOrders = db.collection("orders").orderBy("createdAt", "desc").limit(100).onSnapshot(snap => {
+        orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        ordersLoaded = true;
+        renderOrders();
+      }, err => toast("Could not load orders: " + err.message, true));
     });
+
+    /* ---------- Tabs ---------- */
+    function showTab(tab) {
+      $("menuPane").classList.toggle("hidden", tab !== "menu");
+      $("ordersPane").classList.toggle("hidden", tab !== "orders");
+      $("tabMenu").classList.toggle("active", tab === "menu");
+      $("tabOrders").classList.toggle("active", tab === "orders");
+    }
+
+    /* ---------- Orders ---------- */
+    function renderOrders() {
+      const fresh = orders.filter(o => o.status === "new").length;
+      const badge = $("newCount");
+      badge.textContent = fresh;
+      badge.classList.toggle("hidden", fresh === 0);
+
+      const box = $("orders");
+      if (!ordersLoaded) { box.innerHTML = '<div class="empty">Loading orders...</div>'; return; }
+      if (orders.length === 0) {
+        box.innerHTML = '<div class="empty"><h3>No orders yet</h3><p>Orders will show up here when customers tap Send on WhatsApp.</p></div>';
+        return;
+      }
+
+      box.innerHTML = orders.map(o => {
+        const when = (o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : new Date())
+          .toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+        const isDone = o.status === "done";
+        const lines = (o.items || []).map(i =>
+          "<li><span>" + esc(i.qty) + " x " + esc(i.title) + "</span><span>KSh " + (Number(i.price) * Number(i.qty)).toLocaleString() + "</span></li>"
+        ).join("");
+        return `
+          <div class="order${isDone ? " done" : ""}">
+            <div class="order-head">
+              <div>
+                <div class="order-name">${esc(o.name)}</div>
+                <div class="order-time">${esc(when)}</div>
+              </div>
+              <span class="badge ${isDone ? "finished" : "new"}">${isDone ? "Done" : "New"}</span>
+            </div>
+            <ul>${lines}</ul>
+            ${o.note ? '<div class="note">' + esc(o.note) + "</div>" : ""}
+            <div class="order-foot">
+              <div class="order-total">Total: KSh ${Number(o.total).toLocaleString()}</div>
+              <div class="order-actions">
+                <button class="done-btn" onclick="toggleOrder('${esc(o.id)}')">${isDone ? "Reopen" : "Mark done"}</button>
+                <button class="del" onclick="deleteOrder('${esc(o.id)}')">Delete</button>
+              </div>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    async function toggleOrder(id) {
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      try {
+        await db.collection("orders").doc(id).update({ status: o.status === "done" ? "new" : "done" });
+      } catch (err) {
+        toast("Could not update: " + err.message, true);
+      }
+    }
+
+    async function deleteOrder(id) {
+      if (!confirm("Delete this order?")) return;
+      try {
+        await db.collection("orders").doc(id).delete();
+        toast("Order deleted");
+      } catch (err) {
+        toast("Could not delete: " + err.message, true);
+      }
+    }
 
     /* ---------- List ---------- */
     function renderItems() {
