@@ -413,7 +413,7 @@
             <div class="order-head">
               <div>
                 <div class="order-name">${esc(o.name)}</div>
-                <div class="order-time">${esc(when)}</div>
+                <div class="order-time">${esc(when)}${o.type ? " · " + (o.type === "delivery" ? "Delivery" : "Pickup") : ""}</div>
               </div>
               <span class="badge ${isDone ? "finished" : "new"}">${isDone ? "Done" : "New"}</span>
             </div>

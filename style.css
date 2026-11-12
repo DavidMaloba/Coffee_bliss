@@ -443,3 +443,27 @@ footer {
     padding: 50px 20px 44px;
   }
 }
+
+/* Pickup / delivery choice */
+.order-type {
+  display: flex;
+  gap: 10px;
+}
+
+.order-type label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-weight: normal;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.order-type input {
+  width: auto;
+}
