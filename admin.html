@@ -80,6 +80,11 @@
     .row.out img { filter: grayscale(1); opacity: .55; }
     .actions .stock:hover { background: #fff6e5; border-color: var(--accent); color: var(--accent-dark); }
 
+    .store-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--line); background: #eaf6ec; }
+    .store-bar.closed { background: #fdeceb; }
+    .store-bar strong { display: block; color: var(--espresso); }
+    .store-bar small { color: var(--muted); font-size: .78rem; }
+    .store-bar .btn { flex-shrink: 0; }
     .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
     .tab { flex: 1; padding: 10px; border: 1px solid var(--line); background: #fff; border-radius: 10px; font-weight: 700; font-size: .95rem; color: var(--muted); }
     .tab.active { background: var(--espresso); color: #fff; border-color: var(--espresso); }
@@ -158,6 +163,14 @@
     </div>
 
     <main>
+      <div class="store-bar" id="storeBar">
+        <div>
+          <strong id="storeState">Store is open</strong>
+          <small id="storeHint">Customers can place orders.</small>
+        </div>
+        <button class="btn" id="storeBtn" onclick="toggleStore()">Close store</button>
+      </div>
+
       <div class="tabs">
         <button class="tab active" id="tabMenu" onclick="showTab('menu')">Menu</button>
         <button class="tab" id="tabOrders" onclick="showTab('orders')">Orders <span class="count hidden" id="newCount">0</span></button>
@@ -266,6 +279,8 @@
     let editId = null;
     let unsubscribe = null;
     let unsubOrders = null;
+    let unsubStore = null;
+    let store = { open: true, message: "" };
     let orders = [];
     let ordersLoaded = false;
     let loaded = false;
@@ -298,6 +313,7 @@
     auth.onAuthStateChanged(user => {
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
       if (unsubOrders) { unsubOrders(); unsubOrders = null; }
+      if (unsubStore) { unsubStore(); unsubStore = null; }
       loaded = false;
       ordersLoaded = false;
 
@@ -329,7 +345,39 @@
         ordersLoaded = true;
         renderOrders();
       }, err => toast("Could not load orders: " + err.message, true));
+
+      unsubStore = db.collection("settings").doc("store").onSnapshot(doc => {
+        store = doc.exists ? { open: true, message: "", ...doc.data() } : { open: true, message: "" };
+        renderStore();
+      }, err => toast("Could not load store status: " + err.message, true));
     });
+
+    /* ---------- Open / closed switch ---------- */
+    function renderStore() {
+      const isOpen = store.open !== false;
+      $("storeBar").classList.toggle("closed", !isOpen);
+      $("storeState").textContent = isOpen ? "Store is open" : "Store is closed";
+      $("storeHint").textContent = isOpen
+        ? "Customers can place orders."
+        : (store.message || "Customers cannot place orders.");
+      $("storeBtn").textContent = isOpen ? "Close store" : "Open store";
+    }
+
+    async function toggleStore() {
+      const isOpen = store.open !== false;
+      let message = "";
+      if (isOpen) {
+        const answer = prompt("Message for customers (optional):", "We are closed right now. Please check back later.");
+        if (answer === null) return;
+        message = answer.trim();
+      }
+      try {
+        await db.collection("settings").doc("store").set({ open: !isOpen, message: message });
+        toast(isOpen ? "Store closed" : "Store open");
+      } catch (err) {
+        toast("Could not update: " + err.message, true);
+      }
+    }
 
     /* ---------- Tabs ---------- */
     function showTab(tab) {

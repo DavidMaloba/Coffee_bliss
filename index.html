@@ -12,6 +12,8 @@
     <p>Fresh coffee and delicious breakfast just for you.</p>
   </header>
 
+  <div id="closedBanner" class="closed-banner hidden"></div>
+
   <div class="top-bar">
     <span class="menu-toggle" onclick="toggleMenu()">☰</span>
     <button class="toggle-mode" onclick="toggleMode()">🌙/☀️</button>
@@ -38,7 +40,7 @@
     <h2>🛒 Cart</h2>
     <div id="cart-items"></div>
     <div class="cart-total" id="cart-total">Total: KSh 0</div>
-    <button onclick="checkout()">Checkout</button>
+    <button id="checkoutBtn" onclick="checkout()">Checkout</button>
   </div>
 
   <div id="orderModal" class="order-overlay hidden" onclick="if (event.target === this) closeOrder()">
@@ -181,7 +183,27 @@
     // Orders go to this WhatsApp number (country code first, no + or spaces)
     const WHATSAPP_NUMBER = "254768649781";
 
+    // Open/closed switch (controlled from the admin page)
+    let storeOpen = true;
+    let closedMessage = "We are closed right now. Please check back later.";
+
+    db.collection("settings").doc("store").onSnapshot(doc => {
+      const data = doc.exists ? doc.data() : {};
+      storeOpen = data.open !== false;
+      closedMessage = data.message || "We are closed right now. Please check back later.";
+
+      const banner = document.getElementById("closedBanner");
+      banner.textContent = closedMessage;
+      banner.classList.toggle("hidden", storeOpen);
+
+      const btn = document.getElementById("checkoutBtn");
+      btn.disabled = !storeOpen;
+      btn.textContent = storeOpen ? "Checkout" : "Closed";
+      if (!storeOpen) closeOrder();
+    }, err => console.error("Could not read store status:", err));
+
     function checkout() {
+      if (!storeOpen) return alert(closedMessage);
       if (cart.length === 0) return alert("Your cart is empty.");
       document.getElementById("orderErr").textContent = "";
       document.getElementById("orderModal").classList.remove("hidden");
@@ -192,6 +214,7 @@
     }
 
     function submitOrder() {
+      if (!storeOpen) return alert(closedMessage);
       const name = document.getElementById("orderName").value.trim();
       const note = document.getElementById("orderNote").value.trim();
       if (!name) {
