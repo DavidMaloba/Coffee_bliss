@@ -3,13 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Coffee Bliss</title>
+  <title>Coffee Bliss | Fresh coffee &amp; breakfast</title>
+  <meta name="description" content="Fresh coffee and delicious breakfast. Order online and send your order on WhatsApp." />
+  <meta name="theme-color" content="#4b2e2e" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
+  <header class="hero">
     <h1>Coffee Bliss</h1>
     <p>Fresh coffee and delicious breakfast just for you.</p>
+    <a class="hero-btn" href="#menu">See the menu</a>
   </header>
 
   <div id="closedBanner" class="closed-banner hidden"></div>
@@ -110,9 +117,10 @@
         const div = document.createElement("div");
         div.className = "menu-item" + (item.soldOut ? " sold-out" : "");
         div.innerHTML = `
-          <img src="${esc(item.img)}" alt="${esc(item.title)}">
+          <img src="${esc(item.img)}" alt="${esc(item.title)}" loading="lazy">
           <h3>${esc(item.title)}</h3>
-          <p>${esc(item.desc)} - KSh ${Number(item.price).toLocaleString()}</p>
+          <p>${esc(item.desc)}</p>
+          <div class="price">KSh ${Number(item.price).toLocaleString()}</div>
           ${item.soldOut
             ? '<button class="sold-btn" disabled>Sold out</button>'
             : `<button onclick="addToCart('${esc(item.id)}')">Add to Cart</button>`}
